@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="shortcut icon" href="./logo.ico" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+    <title>svgCanvas</title>
+    <style>
+      html,
+      body {
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      #svgCanvas {
+        width: 100%;
+        height: 92vh;
+        border: 1px solid #eee;
+        box-shadow: 0 0 2px #eee;
+        margin: 10px auto;
+      }
+      .btn-content {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 10px 0 0 10px;
+      }
+      .btn {
+        padding: 6px 16px;
+        cursor: pointer;
+      }
+      .path-content {
+        position: fixed;
+        width: 100%;
+        top: 50px;
+        left: 0px;
+        padding: 10px;
+        transform: scaleY(0);
+        transition: 0.35s;
+        transform-origin: top center;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+      .path-name {
+        box-shadow: 0 0 2px #eee;
+        color: white;
+        background-color: black;
+        display: block;
+        padding: 2px 10px;
+        border-top-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        cursor: pointer;
+        transition: 0.35s;
+      }
+      .path-name:hover {
+        background-color: rebeccapurple;
+      }
+      .setting-content {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        gap: 10px;
+        padding-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="btn-content">
+      <div>
+        <button class="btn" id="clearButton">清空画布</button>
+        <button class="btn" id="saveCanvas">保存画布</button>
+        <button class="btn" id="showCanvasList">查看列表</button>
+        <button class="btn" id="clearList">清空列表</button>
+      </div>
+      <div>随心画布</div>
+      <div class="setting-content">
+        <div class="setting-item">
+          <span>笔粗细</span>
+          <input type="range" id="rangeSize" min="1" max="10" value="2" />
+        </div>
+        <div class="setting-item">
+          <span>笔颜色</span>
+          <input type="color" id="colorPicker" value="#000000" />
+        </div>
+
+        <div class="setting-item">
+          <span>背景</span>
+          <input type="color" id="colorBackground" value="#FFFFFF" />
+        </div>
+      </div>
+    </div>
+    <div id="pathContent" class="path-content">
+      <div class="path-name">path-name</div>
+    </div>
+    <svg id="svgCanvas">
+      <path id="drawPath" d="" stroke="blue" fill="none" stroke-width="2" />
+    </svg>
+
+    <script>
+      const svgCanvas = document.getElementById("svgCanvas");
+      const drawPath = document.getElementById("drawPath");
+      const clearButton = document.getElementById("clearButton");
+      const showCanvasList = document.getElementById("showCanvasList");
+      const saveCanvas = document.getElementById("saveCanvas");
+      const clearList = document.getElementById("clearList");
+      const pathContent = document.getElementById("pathContent");
+      const colorPicker = document.getElementById("colorPicker");
+      const colorBackground = document.getElementById("colorBackground");
+      const rangeSize = document.getElementById("rangeSize");
+      
+      // key
+      const canvasPathsKey = "canvasPaths";
+
+      let isDrawing = false;
+
+      let currentPathData = ""; // 当前路径数据
+      let paths = []; // 存储所有路径
+
+      function debounce(func, delay) {
+        let timeoutId;
+
+        return function (...args) {
+          // 清除之前的定时器
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+
+          // 设置一个新的定时器
+          timeoutId = setTimeout(() => {
+            func.apply(this, args); // 调用原函数
+          }, delay);
+        };
+      }
+
+      // 背景颜色
+      colorBackground.addEventListener(
+        "input",
+        debounce(() => {
+          console.log(colorBackground.value);
+          const html = document.querySelector("html");
+          html.style.backgroundColor = colorBackground.value;
+        }, 200)
+      );
+
+      // 鼠标按下事件
+      svgCanvas.addEventListener("mousedown", function (event) {
+        if (event.button === 0) {
+          // 检查是否是左键
+          isDrawing = true;
+          const startX = event.offsetX;
+          const startY = event.offsetY;
+          // 创建新的路径
+          currentPathData = `M ${startX} ${startY} `;
+
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path"
+          );
+          path.setAttribute("d", currentPathData);
+          path.setAttribute("stroke", colorPicker.value); // 设置当前路径颜色
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke-width", rangeSize.value);
+
+          paths.push(path); // 存储路径
+          svgCanvas.appendChild(path); // 添加到 SVG 中
+        }
+      });
+
+      // 鼠标移动事件
+      svgCanvas.addEventListener("mousemove", function (event) {
+        if (isDrawing) {
+          const x = event.offsetX;
+          const y = event.offsetY;
+          currentPathData += `L ${x} ${y}`; // 更新当前路径数据
+          const currentPath = paths[paths.length - 1]; // 获取当前路径
+          currentPath.setAttribute("d", currentPathData); // 更新当前路径的描绘
+        }
+      });
+
+      // 鼠标抬起事件
+      svgCanvas.addEventListener("mouseup", function (event) {
+        if (event.button === 0) {
+          isDrawing = false;
+        }
+      });
+
+      // 鼠标离开事件（可选）
+      svgCanvas.addEventListener("mouseleave", function () {
+        isDrawing = false;
+      });
+
+      // 清空按钮事件
+      clearButton.addEventListener("click", function () {
+        paths.forEach((path) => svgCanvas.removeChild(path)); // 移除所有路径
+        paths = []; // 清空路径数组
+      });
+
+      // 查看列表按钮事件
+      showCanvasList.addEventListener("click", function () {
+        const savedPaths =
+          JSON.parse(localStorage.getItem(canvasPathsKey)) || [];
+        if (savedPaths.length === 0) {
+          swal({
+            title: "查看列表",
+            text: "没有保存的画布!",
+            icon: "info",
+            button: "确认",
+          });
+          return;
+        }
+        // 清空盒子
+        pathContent.innerHTML = "";
+        savedPaths.map((pathItem) => {
+          const div = document.createElement("div");
+          div.innerText = pathItem.name;
+          div.className = "path-name";
+          pathContent.append(div);
+          pathContent.style.transform = "scaleY(1)";
+          div.addEventListener("click", () => {
+            // drawPath.setAttribute("d", path.currentPath);
+            paths.forEach((path) => svgCanvas.removeChild(path)); // 移除所有路径
+            paths = []; // 清空路径数组
+            pathItem.savedPaths.map((path_) => {
+              const path = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "path"
+              );
+              path.setAttribute("d", path_.d);
+              path.setAttribute("stroke", path_.color); // 设置当前路径颜色
+              path.setAttribute("fill", "none");
+              path.setAttribute("stroke-width", path_.strokeSize);
+              paths.push(path); // 存储路径
+              svgCanvas.appendChild(path); // 添加到 SVG 中
+            });
+
+            pathContent.style.transform = "scaleY(0)";
+          });
+        });
+      });
+
+      // 清空列表
+      clearList.addEventListener("click", () => {
+        localStorage.removeItem(canvasPathsKey);
+        paths.forEach((path) => svgCanvas.removeChild(path)); // 移除所有路径
+        paths = []; // 清空路径数组
+        swal({
+          title: "清空列表",
+          text: "已清空列表!",
+          icon: "success",
+          button: "确认",
+        });
+        pathContent.style.transform = "scaleY(0)";
+      });
+
+      // 保存画布按钮事件
+      saveCanvas.addEventListener("click", function () {
+        // const currentPath = drawPath.getAttribute("d");
+        if (!paths.length) {
+          swal({
+            title: "保存画布",
+            text: "当前无笔画，无需保存",
+            icon: "warning",
+            button: "确认",
+          });
+          return;
+        }
+
+        //
+        swal({
+          text: "我来为画布命个名",
+          content: "input",
+          button: {
+            text: "就这个",
+            closeModal: false,
+          },
+        })
+          .then((name) => {
+            if (!name) throw null;
+            const savedPaths = paths.map((path) => {
+              return {
+                d: path.getAttribute("d"),
+                color: path.getAttribute("stroke"),
+                strokeSize:path.getAttribute('stroke-width')
+              };
+            });
+            const currentData = { name, savedPaths };
+            let savedPathsList =
+              JSON.parse(localStorage.getItem(canvasPathsKey)) || [];
+            const exists = savedPathsList.some((user) => user.name === name);
+            if (exists) {
+              return swal("画布昵称已存在，换一个试试吧~");
+            }
+            savedPathsList.push(currentData);
+            // 判断当前名称是否存在
+
+            localStorage.setItem("canvasPaths", JSON.stringify(savedPathsList)); // 保存到本地存储
+            swal({
+              title: "保存画布",
+              text: "画布已保存!",
+              icon: "success",
+              button: "确认",
+            });
+            paths.forEach((path) => svgCanvas.removeChild(path)); // 移除所有路径
+            paths = []; // 清空路径数组
+          })
+          .catch((err) => {
+            if (err) {
+              swal("Oh noes!", "保存画布失败!", "error");
+            } else {
+              swal.stopLoading();
+              swal.close();
+            }
+          });
+      });
+    </script>
+  </body>
+</html>
